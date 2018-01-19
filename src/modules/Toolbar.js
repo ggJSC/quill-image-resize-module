@@ -1,9 +1,11 @@
 import IconAlignLeft from 'quill/assets/icons/align-left.svg';
 import IconAlignCenter from 'quill/assets/icons/align-center.svg';
 import IconAlignRight from 'quill/assets/icons/align-right.svg';
+import IconMinimize from 'quill/assets/icons/collapse-two-arrows-diagonal-symbol.svg';
 import { BaseModule } from './BaseModule';
+import Quill from 'quill';
 
-const Parchment = window.Quill.imports.parchment;
+const Parchment = Quill.imports.parchment;
 const FloatStyle = new Parchment.Attributor.Style('float', 'float');
 const MarginStyle = new Parchment.Attributor.Style('margin', 'margin');
 const DisplayStyle = new Parchment.Attributor.Style('display', 'display');
@@ -18,13 +20,19 @@ export class Toolbar extends BaseModule {
         // Setup Buttons
         this._defineAlignments();
         this._addToolbarButtons();
-    };
+
+        // Setup Minimize
+		this._addMinimizeButton();
+	};
 
 	// The toolbar and its children will be destroyed when the overlay is removed
     onDestroy = () => {};
 
-	// Nothing to update on drag because we are are positioned relative to the overlay
-    onUpdate = () => {};
+    onUpdate = () => {
+		this.overlays.forEach(obj => {
+			this._positionOverlay(obj);
+		});
+	};
 
     _defineAlignments = () => {
         this.alignments = [
@@ -92,6 +100,109 @@ export class Toolbar extends BaseModule {
 			this.toolbar.appendChild(button);
 		});
     };
+
+    _addMinimizeButton = () => {
+		const minimize = document.createElement("div");
+		Object.assign(minimize.style, this.options.toolbarButtonStyles);
+		minimize.innerHTML = IconMinimize;
+		this.toolbar.appendChild(minimize);
+
+		minimize.addEventListener("click", this._handleMinimize);
+	};
+
+    _handleMinimize = event => {
+		(img => {
+			// Need fullsize width when expanding <img> again
+			const fullsizeWidth = img.width;
+
+			const minimizeOverlay = document.createElement("div");
+			Object.assign(minimizeOverlay.style, this.options.minimizeOverlayStyles);
+			minimizeOverlay.style.width = fullsizeWidth + "px";
+			let overlayObj = {
+				dom: minimizeOverlay,
+				img: img
+			};
+			this.overlays.push(overlayObj);
+
+			this._positionOverlay(overlayObj);
+
+			// Set the text as the filename pulled from the <img> src
+			let label = document.createElement("div");
+			label.textContent = img.src.substring(img.src.lastIndexOf("/") + 1) + " +";
+			Object.assign(label.style, {
+				display: "inline-block",
+				marginLeft: "50%",
+				transform: "translateX(-50%)"
+			});
+			minimizeOverlay.append(label);
+
+			// Add the overlay to the parent container of the quill editor
+			this.quill.root.parentElement.appendChild(minimizeOverlay);
+
+			// Watch for changes to the img dom in order to prevent cases of overlay overlapping
+			// on quill content, i.e. expanding an image when there is a collapsed right under
+			// the soon to be expanded overlay.
+			let observer = new MutationObserver(list => {
+				this._positionOverlay(overlayObj);
+			});
+			observer.observe(this.quill.root, {
+				attributes: true,
+				childList: true,
+				characterData: true
+			});
+
+			this._hideImage(img);
+
+			minimizeOverlay.addEventListener("click", e => {
+				this._removeOverlay(overlayObj, observer, fullsizeWidth);
+			});
+
+			this.hide();
+		})(this.img);
+	};
+
+    _positionOverlay = ({ dom, img }) => {
+		// Calculate offsets to position the overlay
+		let imgRect = img.getBoundingClientRect();
+
+		// Get container of quill editor.
+		let editorDOM = this.quill.root.parentElement;
+		let editorRect = editorDOM.getBoundingClientRect();
+		let left = imgRect.left - editorRect.left - 1;
+		let top = imgRect.top - editorRect.top;
+		let scrollTop = editorDOM.scrollTop;
+
+		// Style the overlay
+		dom.style.left = "" + left + "px";
+		dom.style.top = "" + (top + scrollTop) + "px";
+	};
+
+    _hideImage = (img) => {
+		// Hide and "resize" <img> to give the impression of being minimized
+		let imgIndex = this.quill.getIndex(Quill.find(img));
+		this.quill.formatText(imgIndex, 1, {
+			'height': '35px',
+			'visibility': 'hidden'
+		}, 'silent');
+	};
+
+    _removeOverlay = ({ dom, img }, obs, width) => {
+		dom.style.display = "none";
+		obs.disconnect();
+
+		let imgIndex = this.quill.getIndex(Quill.find(img));
+		this.quill.formatText(imgIndex, 1, {
+			'height': '',
+			'visibility': ''
+		}, 'silent');
+		img.click();
+		this.overlays = this.overlays.reduce((acc, overlay) => {
+			if (overlay.dom !== dom)
+				acc.push(overlay);
+			return acc;
+		}, []);
+		dom.remove();
+	};
 
     _selectButton = (button) => {
 		button.style.filter = 'invert(20%)';

@@ -2,7 +2,7 @@ export default {
     modules: [
         'DisplaySize',
         'Toolbar',
-        'Resize',
+        'Resize'
     ],
     overlayStyles: {
         position: 'absolute',
@@ -56,4 +56,17 @@ export default {
         stroke: '#444',
         strokeWidth: '2',
     },
+	minimizeOverlayStyles: {
+    	position: 'absolute',
+		height: "35px",
+		lineHeight: "35px",
+		fontFamily: "'Open Sans', sans-serif;",
+		boxSizing: "border-box",
+		paddingLeft: "25px",
+		paddingRight: "10px",
+		cursor: "default",
+		fontSize: "16px",
+		backgroundColor: "#395371",
+		color: "white"
+	}
 };

@@ -4,6 +4,10 @@ export class BaseModule {
         this.img = resizer.img;
         this.options = resizer.options;
         this.requestUpdate = resizer.onUpdate;
+        this.hide = resizer.hide;
+        this.show = resizer.show;
+        this.overlays = resizer.overlays;
+        this.quill = resizer.quill;
     }
     /*
         requestUpdate (passed in by the library during construction, above) can be used to let the library know that
